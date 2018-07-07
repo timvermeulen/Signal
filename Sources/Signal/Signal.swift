@@ -1,9 +1,11 @@
 public final class Signal<Value> {
     private var callbacks: Atomic<[Token: (Value) -> Void]>
-    let disposeBag: DisposeBag
+    private let context: ExecutionContext?
+    var disposeBag: DisposeBag
     
-    private init() {
+    private init(context: ExecutionContext?) {
         callbacks = Atomic([:])
+        self.context = context
         disposeBag = DisposeBag()
     }
 }
@@ -12,17 +14,32 @@ private extension Signal {
     final class Token {
         init() {}
     }
+    
+    convenience init(context: ExecutionContext?, _ process: (Sink<Value>) -> Void) {
+        self.init(context: context)
+        process(Sink(signal: self))
+    }
+    
+    func perform(_ block: @escaping () -> Void) {
+        if let context = context {
+            context { block() }
+        } else {
+            block()
+        }
+    }
 }
 
 internal extension Signal {
     func send(_ value: Value) {
-        callbacks.value.values.forEach { $0(value) }
+        callbacks.value.values.forEach { callback in
+            perform { callback(value) }
+        }
     }
 }
 
 public extension Signal {
     static var pending: Signal {
-        return Signal()
+        return Signal(context: nil)
     }
     
     static func make() -> (signal: Signal, sink: Sink<Value>) {
@@ -32,9 +49,14 @@ public extension Signal {
         return (signal, sink)
     }
     
-    convenience init(_ work: (Sink<Value>) -> Void) {
-        self.init()
-        work(Sink(signal: self))
+    convenience init(_ process: (Sink<Value>) -> Void) {
+        self.init(context: nil, process)
+    }
+    
+    func changeContext(_ context: @escaping ExecutionContext) -> Signal {
+        return Signal(context: context) { sink in
+            sink.subscribe(to: self)
+        }
     }
 }
 

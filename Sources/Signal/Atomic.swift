@@ -4,15 +4,15 @@ final class Atomic<Value> {
     private var _value: Value
     private let queue: DispatchQueue
     
-    init(_ value: Value, queue: DispatchQueue = DispatchQueue(label: "\(Atomic.self) queue")) {
+    init(_ value: Value, queue: DispatchQueue = DispatchQueue(label: "\(Atomic.self)")) {
         self._value = value
         self.queue = queue
     }
 }
 
 extension Atomic {
-    func access<T>(_ block: (inout Value) -> T) -> T {
-        return queue.sync { block(&_value) }
+    func access<T>(_ transform: (inout Value) -> T) -> T {
+        return queue.sync { transform(&_value) }
     }
     
     var value: Value {

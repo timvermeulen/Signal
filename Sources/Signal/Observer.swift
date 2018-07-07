@@ -3,7 +3,10 @@ public protocol Observer {
 }
 
 public extension Observer {
-    func subscribe<O: Observable>(to observable: O, _ handler: @escaping (O.Value) -> Void) {
-        observable.subscribe(in: disposeBag, handler)
+    func subscribe<O: Observable>(
+        to observable: O,
+        _ process: @escaping (O.Value) -> Void
+    ) {
+        observable.subscribe(in: disposeBag, process)
     }
 }

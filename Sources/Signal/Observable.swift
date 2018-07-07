@@ -1,4 +1,4 @@
 public protocol Observable {
     associatedtype Value
-    func subscribe(in disposeBag: DisposeBag, _ handler: @escaping (Value) -> Void)
+    func subscribe(in disposeBag: DisposeBag, _ process: @escaping (Value) -> Void)
 }

@@ -16,7 +16,7 @@ final class SignalTests: XCTestCase {
     func testScan() {
         let (signal, sink) = Signal<Int>.make()
         
-        signal.scan(state: 0, +).assertWillProduce([3, 8, 10, 18]) {
+        signal.scan(0, +).assertWillProduce([0, 3, 8, 10, 18]) {
             sink.send(3)
             sink.send(5)
             sink.send(2)
@@ -61,8 +61,16 @@ final class SignalTests: XCTestCase {
         }
     }
     
+    func testBufferCount() {
+        let (signal, sink) = Signal<Int>.make()
+        
+        signal.buffered(count: 3).assertWillProduce([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) {
+            (1...10).forEach(sink.send)
+        }
+    }
+    
     func testVariable() {
-        let variable = Variable(value: 123)
+        let variable = Variable(123)
         
         variable.assertWillProduce([123, 100, 200]) {
             variable.value = 100
@@ -71,7 +79,7 @@ final class SignalTests: XCTestCase {
     }
     
     func testVariableMap() {
-        let variable1 = Variable(value: 123)
+        let variable1 = Variable(123)
         let variable2 = variable1.map { $0 * 2 }
         
         variable2.assertWillProduce([246, 20, 200]) {

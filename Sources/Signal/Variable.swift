@@ -3,7 +3,7 @@ public final class Variable<Value> {
     private let signal: Signal<Value>
     private let sink: Sink<Value>
     
-    public init(value: Value) {
+    public init(_ value: Value) {
         atomicValue = Atomic(value)
         (signal, sink) = Signal.make()
     }
@@ -24,7 +24,7 @@ extension Variable: Observable {
 
 public extension Variable {
     convenience init(_ signal: Signal<Value>, initial: Value) {
-        self.init(value: initial)
+        self.init(initial)
         
         subscribe(to: signal) { [weak self] value in
             self?.value = value
@@ -39,6 +39,10 @@ public extension Variable {
             atomicValue.value = newValue
             sink.send(newValue)
         }
+    }
+    
+    func subscribe<O: Observable>(to observable: O) where O.Value == Value {
+        sink.subscribe(to: observable)
     }
     
     func map<T>(_ transform: @escaping (Value) -> T) -> Variable<T> {

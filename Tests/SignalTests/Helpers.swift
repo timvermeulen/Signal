@@ -8,12 +8,8 @@ extension Observable where Value: Equatable {
         line: UInt = #line,
         _ block: () -> Void
     ) {
-        var values: [Value] = []
-        let disposeBag = DisposeBag()
-        
-        subscribe(in: disposeBag) { values.append($0) }
-        withExtendedLifetime(disposeBag, block)
-        
-        XCTAssertEqual(values, expectedValues, file: file, line: line)
+        let values = scan(into: []) { $0.append($1) }
+        block()
+        XCTAssertEqual(values.value, expectedValues, file: file, line: line)
     }
 }
