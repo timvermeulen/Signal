@@ -55,9 +55,8 @@ public extension Observable {
     
     func filter(_ isIncluded: @escaping (Value) -> Bool) -> Signal<Value> {
         return transform { sink, value in
-            if isIncluded(value) {
-                sink.send(value)
-            }
+            guard isIncluded(value) else { return }
+            sink.send(value)
         }
     }
     
@@ -66,9 +65,8 @@ public extension Observable {
         _ transform: @escaping (inout State, Value) -> T?
     ) -> Signal<T> {
         return self.transform(state: state) { state, sink, value in
-            if let transformed = transform(&state, value) {
-                sink.send(transformed)
-            }
+            guard let transformed = transform(&state, value) else { return }
+            sink.send(transformed)
         }
     }
     
@@ -191,29 +189,29 @@ public extension Observable where Value: Equatable {
     }
 }
 
-func zip<T, U>(_ left: Signal<T>, _ right: Signal<U>) -> Signal<(T, U)> {
-    var latest: (left: T?, right: U?)
+public func zip<O1: Observable, O2: Observable>(_ left: O1, _ right: O2) -> Signal<(O1.Value, O2.Value)> {
+    let latest = Atomic<(left: O1.Value?, right: O2.Value?)>((nil, nil))
     
     return .init { sink in
         sink.subscribe(to: left) { left in
-            latest.left = left
+            latest.value.left = left
             
-            if let right = latest.right {
+            if let right = latest.value.right {
                 sink.send((left, right))
             }
         }
         
         sink.subscribe(to: right) { right in
-            latest.right = right
+            latest.value.right = right
             
-            if let left = latest.left {
+            if let left = latest.value.left {
                 sink.send((left, right))
             }
         }
     }
 }
 
-func merge<T, O1: Observable, O2: Observable>(
+public func merge<T, O1: Observable, O2: Observable>(
     _ left: O1,
     _ right: O2
 ) -> Signal<T> where O1.Value == T, O2.Value == T {
@@ -223,9 +221,25 @@ func merge<T, O1: Observable, O2: Observable>(
     }
 }
 
-func combine<Left: Observable, Right: Observable>(
-    _ left: Left,
-    _ right: Right
-) -> Signal<Either<Left.Value, Right.Value>> {
+public func combine<O1: Observable, O2: Observable>(
+    _ left: O1,
+    _ right: O2
+) -> Signal<Either<O1.Value, O2.Value>> {
     return merge(left.map(Either.left), right.map(Either.right))
+}
+
+public extension Collection {
+    func traverse<O: Observable>(_ transform: (Element) throws -> O) rethrows -> Signal<[O.Value]> {
+        guard let first = first else { return .pending }
+        
+        return try dropFirst().reduce(transform(first).map { [$0] }) {
+            zip($0, try transform($1)).map { $0 + [$1] }
+        }
+    }
+}
+
+public extension Collection where Element: Observable {
+    func sequence() -> Signal<[Element.Value]> {
+        return traverse { $0 }
+    }
 }
